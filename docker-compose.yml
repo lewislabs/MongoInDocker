@@ -1,0 +1,23 @@
+version: '3'
+services:
+  config1:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongod --configsvr --replSet config_servers
+    # ADD volume mount for local directory 
+  config2:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongod --configsvr --replSet config_servers
+  config3:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongod --configsvr --replSet config_servers
+  shard_rs1_1:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongod --shardsvr --replSet rs1
+    # ADD volume mount for local directory
+  shard_rs1_2:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongod --shardsvr --replSet rs1
+  shard_rs1_3:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongod --shardsvr --replSet rs1
+
