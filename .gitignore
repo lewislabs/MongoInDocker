@@ -1,0 +1,17 @@
+.vs
+.vscode/settings.json
+[Oo]bj/
+[Bb]in/
+.nuget/
+_ReSharper.*
+packages/
+artifacts/
+*.user
+*.suo
+*.userprefs
+*DS_Store
+*.sln.ide
+project.lock.json
+obj/
+bin/
+*~
