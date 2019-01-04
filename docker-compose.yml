@@ -3,21 +3,48 @@ services:
   config1:
     image: mongo:3.2.9
     entrypoint: /usr/bin/mongod --configsvr --replSet config_servers
-    # ADD volume mount for local directory 
+    expose:
+      - "27019"
+    volumes:
+      - ./scripts/config:/tmp/scripts
+    #mongo localhost:27019 tmp/scripts/initiate_servers.js
   config2:
     image: mongo:3.2.9
     entrypoint: /usr/bin/mongod --configsvr --replSet config_servers
+    expose:
+      - "27019"
   config3:
     image: mongo:3.2.9
     entrypoint: /usr/bin/mongod --configsvr --replSet config_servers
+    expose:
+      - "27019"
   shard_rs1_1:
     image: mongo:3.2.9
     entrypoint: /usr/bin/mongod --shardsvr --replSet rs1
-    # ADD volume mount for local directory
+    volumes:
+      - ./scripts/shard:/tmp/scripts
+    #mongo localhost:27018 tmp/scripts/initiate_shards.js
   shard_rs1_2:
     image: mongo:3.2.9
     entrypoint: /usr/bin/mongod --shardsvr --replSet rs1
   shard_rs1_3:
     image: mongo:3.2.9
     entrypoint: /usr/bin/mongod --shardsvr --replSet rs1
-
+  router1:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongos --configdb "config_servers/mongoindocker_config1_1:27019, mongoindocker_config2_1:27019, mongoindocker_config3_1:27019"
+    ports:
+      - "127.0.0.1:27017:27017"
+    volumes:
+      - ./scripts/router:/tmp/scripts
+    #mongo localhost:27017 tmp/scripts/add_shard.js
+  router2:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongos --configdb "config_servers/mongoindocker_config1_1:27019, mongoindocker_config2_1:27019, mongoindocker_config3_1:27019"
+    ports:
+      - "127.0.0.2:27017:27017"
+  router3:
+    image: mongo:3.2.9
+    entrypoint: /usr/bin/mongos --configdb "config_servers/mongoindocker_config1_1:27019, mongoindocker_config2_1:27019, mongoindocker_config3_1:27019"
+    ports:
+      - "127.0.0.3:27017:27017"
