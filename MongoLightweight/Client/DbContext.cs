@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using MongoDB.Driver;
+using MongoDB.Driver.Core.Events;
 
 namespace Client
 {
@@ -9,22 +11,49 @@ namespace Client
     {
         internal readonly MongoClient ClientContext;
         private readonly string _dbName;
+        private readonly Dictionary<string, int> _queryCount = new Dictionary<string, int>();
+
+        public IEnumerable<(string Host, int Count)> GetCounts() => _queryCount.Select((item) => (item.Key, item.Value));
+
         public DbContext()
         {
             _dbName = "Main";
-            ClientContext = new MongoClient("mongodb://127.0.0.1:27017,127.0.0.2:27017,127.0.0.3:27017");
+            var connectionUrl = new MongoUrl($"mongodb://127.0.0.1:27117,127.0.0.1:27118,127.0.0.1:27119/{_dbName}");
+            var connectionSettings = new MongoClientSettings() {
+                Servers = connectionUrl.Servers,
+                ClusterConfigurator = cb => {
+                    cb.Subscribe<CommandStartedEvent>(e => {
+                        var cmd = e.CommandName.ToLower();
+                        if (cmd == "find" || cmd == "insert" || cmd == "listDatabases")
+                        {
+                            var server = e.ConnectionId.ServerId.EndPoint.ToString();
+                            if (_queryCount.TryGetValue(server, out var count)) {
+                                _queryCount[server] = count + 1;
+                            }
+                        }
+                    });
+                },
+            };
+            ClientContext = new MongoClient(connectionSettings);
+            foreach(var srv in ClientContext.Settings.Servers)
+            {
+                Console.WriteLine($"initializing counts for: {srv.Host}:{srv.Port}");
+                _queryCount.TryAdd($"{srv.Host}:{srv.Port}", 0);
+            }
         }
 
         private IMongoCollection<Person> GetTestCollection()
         {
-            return ClientContext.GetDatabase(_dbName).GetCollection<Person>("test_collection");
+            var db = ClientContext.GetDatabase(_dbName);
+            return db.GetCollection<Person>("test_collection");
         }
 
         public async Task ListDatabases()
         {
+            string results = "";
             using (var cursor = await ClientContext.ListDatabasesAsync())
             {
-                await cursor.ForEachAsync(d => Console.WriteLine(d.ToString()));
+                await cursor.ForEachAsync(d => results += d.ToString());
             }
         }
 
@@ -35,10 +64,6 @@ namespace Client
             var fb = new FilterDefinitionBuilder<Person>();
             var result = await collection.FindAsync(fb.Eq(p => p.Name, name));
             var document = result.ToList().FirstOrDefault();
-            if (document != null)
-            {
-                Console.WriteLine("Document Found");
-            }
         }
 
         public async Task CreatePerson(string name, int age)
@@ -50,7 +75,6 @@ namespace Client
                 Name = name,
                 Age = age,
             });
-            Console.WriteLine($"Document Created:{name} - {age}");
         }
     }
 }
