@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using DnsClient;
@@ -18,8 +20,35 @@ namespace Client
                 "Sarah",
             };
             var random = new Random();
+            var work = new List<Task>();
+
+            work.Add(Task.Factory.StartNew(async () =>
+            {
+                while (true)
+                {
+                    Console.Clear();
+                    Console.WriteLine($"Server Status:");
+                    var counts = dbContext.GetCounts();
+                    foreach(var s in dbContext.ClientContext.Cluster.Description.Servers)
+                    {
+                        (string Host, int Count) = counts.FirstOrDefault(c => s.EndPoint.ToString() == c.Host);
+                        if (Host != null)
+                        {
+                            Console.WriteLine($"    {s.EndPoint} ({s.Type}) ({Count}) {s.State}");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"    {s.EndPoint} ({s.Type}) (??) {s.State}");
+                        }
+                    }
+                    Console.WriteLine("\nPress ctrl+c to exit...");
+                    Thread.Sleep(100);
+                }
+            }));
+
+
             // Read
-            await Task.Factory.StartNew(async () =>
+            work.Add(Task.Factory.StartNew(async () =>
             {
                 while (true)
                 {
@@ -30,14 +59,14 @@ namespace Client
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("exception:", ex.Message.ToString());
                         continue;
                     }
 
                 }
-            });
+            }));
+
             // DB Admin
-            await Task.Factory.StartNew(async () =>
+            work.Add(Task.Factory.StartNew(async () =>
             {
                 while (true)
                 {
@@ -48,15 +77,14 @@ namespace Client
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("exception:", ex.Message.ToString());
                         continue;
                     }
 
                 }
-            });
+            }));
 
             // Write
-            await Task.Factory.StartNew(async () =>
+            work.Add(Task.Factory.StartNew(async () =>
             {
                 while (true)
                 {
@@ -67,12 +95,12 @@ namespace Client
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine("exception:", ex.Message.ToString());
                         continue;
                     }
 
                 }
-            });
+            }));
+            await Task.WhenAll(work);
             Console.ReadLine();
         }
     }
